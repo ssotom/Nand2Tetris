@@ -1,0 +1,63 @@
+class Main {
+	
+	function void main() {
+		var int month, year;
+		var String strYear, strMonth, strAction;
+		var char key;
+		let strYear = "Anio: ";
+		let strMonth = "Mes: ";
+		let strAction = "Toma una accion: [<][>][^][v][O][T] ";
+		let year = Keyboard.readInt(strYear);
+		let month = Keyboard.readInt(strMonth);
+		do Calendar.printCalendar(month,year);
+		do Output.printString(strAction);
+		while(~(key=84)) {
+			let key = Keyboard.readChar();
+			if(key=130){
+				if(month=1){
+					let month = 13;
+					let year = year - 1;
+				}
+				let month = month - 1;
+				do Calendar.printCalendar(month,year);
+				do Output.printString(strAction);
+			}
+			if(key=132){
+				if(month=12){
+					let month = 0;
+					let year = year + 1;
+				}
+				let month = month + 1;
+				do Calendar.printCalendar(month,year);
+				do Output.printString(strAction);
+			}
+			if(key=131){
+				let year = year - 1;
+				do Calendar.printCalendar(month,year);
+				do Output.printString(strAction);
+			}
+			if(key=133){
+				let year = year + 1;
+				do Calendar.printCalendar(month,year);
+				do Output.printString(strAction);
+			}
+			if(key=79){
+				do Screen.clearScreen();
+				do Output.moveCursor(0,0);
+				let year = Keyboard.readInt(strYear);
+				let month = Keyboard.readInt(strMonth);
+				do Calendar.printCalendar(month,year);
+				do Output.printString(strAction);
+			}
+			do Output.backSpace();
+		}
+		do Output.println();
+		do Output.printString("Termina el programa.");
+		return;
+	}
+
+	function int mod(int a, int b) {
+		return a - (b*(a/b));
+	}
+
+}

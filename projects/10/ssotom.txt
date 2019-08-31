@@ -1,0 +1,1 @@
+maven:java -cp target/JackCompiler-1.0.jar co.edu.eafit.JackCompiler

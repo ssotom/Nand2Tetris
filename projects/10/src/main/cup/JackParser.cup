@@ -1,0 +1,301 @@
+import java_cup.runtime.*;
+import java.util.LinkedList;
+
+/**
+Clase que reciben los tokens y va siguiendo la gramática del lenguaje para comprobar
+si a sintaxis es correcta, a su vez genera el árbol de análisis sintáctico.
+Este parser está desarrollado con JCUP, este no reconoce algunas funciones de las gramáticas normales 
+como los son *+? por lo que la gramática debió ser factoriza, pero se conserva su significado.
+*/
+parser code {:
+
+public Node n = new Node(); // Nodo raiz del arbol
+
+// Todos los métodos a continuación son auxiliares para agregar diferentes nodos al árbol
+public void addClass(Object e, Node a, Node b) {
+      n = new Node("class");n.add("<keyword> class </keyword>");n.add("<identifier> "+e+" </identifier>");
+      n.add("<symbol> { </symbol>");n.add(a);n.add(b);n.add("<symbol> } </symbol>");n.add("/class");
+}
+
+public Node addClassVarDec(Object e, Node a, Node b, Node c) {
+      n = new Node("classVarDec");n.add(a);n.add(b);n.add("<identifier> "+e+" </identifier>");
+      n.add(c);n.add("<symbol> ; </symbol>");n.add("/classVarDec");
+      return n;
+}
+
+public Node addAux4(Object e, Node a) {
+      n = new Node();n.add("<symbol> , </symbol>");n.add("<identifier> "+e+" </identifier>");n.add(a);
+      return n;
+}
+
+public Node addSubRoutineDec(Object e, Node a, Node b, Node c, Node d) {
+      n = new Node("subroutineDec");n.add(a);n.add(b);n.add("<identifier> "+e+" </identifier>");
+      n.add("<symbol> ( </symbol>");n.add("parameterList");n.add(c);n.add("/parameterList");
+      n.add("<symbol> ) </symbol>");n.add(d);n.add("/subroutineDec");
+      return n;
+}
+
+public Node addSubRoutineBody(Node a, Node b) {
+      n = new Node("subroutineBody");n.add("<symbol> { </symbol>");n.add(a);n.add(b);
+      n.add("<symbol> } </symbol>");n.add("/subroutineBody");
+      return n;
+}
+
+public Node addVarDec(Object e, Node a, Node b) {
+      n = new Node("varDec");n.add("<keyword> var </keyword>");n.add(a);
+      n.add("<identifier> "+e+" </identifier>");n.add(b);n.add("<symbol> ; </symbol>");n.add("/varDec");
+      return n;
+}
+
+public Node addParameterList(Object e, Node a, Node b) {
+      n = new Node();n.add(a);n.add("<identifier> "+e+" </identifier>");n.add(b);
+      return n;
+}
+
+public Node addAux7(Object e, Node a, Node b) {
+      n = new Node();n.add("<symbol> , </symbol>");n.add(a);n.add("<identifier> "+e+" </identifier>");n.add(b);
+      return n;
+}
+
+public Node addLetStatement(Object e, Node a, Node b) {
+      n = new Node("letStatement");n.add("<keyword> let </keyword>");n.add("<identifier> "+e+" </identifier>");
+      if(b != null) {
+         n.add("<symbol> [ </symbol>");n.add(b);n.add("<symbol> ] </symbol>");
+      }
+      n.add("<symbol> = </symbol>");n.add(a);n.add("<symbol> ; </symbol>");n.add("/letStatement");
+      return n;
+}
+
+public Node addIfStatement(Node a, Node b, Node c, boolean e) {
+      n = new Node("ifStatement");n.add("<keyword> if </keyword>");
+      n.add("<symbol> ( </symbol>");n.add(a);n.add("<symbol> ) </symbol>");
+      n.add("<symbol> { </symbol>");n.add(b);n.add("<symbol> } </symbol>");
+      if(e) {
+         n.add("<keyword> else </keyword>");n.add("<symbol> { </symbol>");n.add(c);n.add("<symbol> } </symbol>");
+      }
+      n.add("/ifStatement");
+      return n;
+}
+
+public Node addWhileStatement(Node a, Node b) {
+      n = new Node("whileStatement");n.add("<keyword> while </keyword>");
+      n.add("<symbol> ( </symbol>");n.add(a);n.add("<symbol> ) </symbol>");
+      n.add("<symbol> { </symbol>");n.add(b);n.add("<symbol> } </symbol>");
+      n.add("/whileStatement");
+      return n;
+}
+
+public Node addDoStatement(Node a) {
+      n = new Node("doStatement");n.add("<keyword> do </keyword>");n.add(a);n.add("<symbol> ; </symbol>");n.add("/doStatement");
+      return n;
+}
+
+public Node addReturnStatement(Node a) {
+      n = new Node("returnStatement");n.add("<keyword> return </keyword>");n.add(a);n.add("<symbol> ; </symbol>");n.add("/returnStatement");
+      return n;
+}
+
+public Node addTerm(Object e, Node a) {
+      n = new Node("term");n.add("<identifier> "+e+" </identifier>");n.add("<symbol> [ </symbol>");n.add(a);
+      n.add("<symbol> ] </symbol>");n.add("/term");
+      return n;
+}
+
+public Node addTerm(Node a) {
+      n = new Node("term");n.add("<symbol> ( </symbol>");n.add(a);n.add("<symbol> ) </symbol>");n.add("/term");
+      return n;
+}
+
+public Node addTerm2(Node a, Node b) {
+      n = new Node("term");n.add(a);n.add(b);n.add("/term");
+      return n;
+}
+
+public Node addSubRoutineCall(Object e, Node a) {
+      n = new Node();n.add("<identifier> "+e+" </identifier>");n.add("<symbol> ( </symbol>");n.add("expressionList");
+      n.add(a);n.add("/expressionList");n.add("<symbol> ) </symbol>");
+      return n;
+}
+
+public Node addSubRoutineCall2(Object e, Object e2, Node a) {
+      n = new Node();n.add("<identifier> "+e+" </identifier>");n.add("<symbol> . </symbol>");
+      n.add("<identifier> "+e2+" </identifier>");n.add("<symbol> ( </symbol>");n.add("expressionList");
+      n.add(a);n.add("/expressionList");n.add("<symbol> ) </symbol>");
+      return n;
+}
+
+public void syntax_error(Symbol cur_token) {
+   System.out.print("Syntax error ");
+}
+
+public void unrecovered_syntax_error(Symbol cur_token) throws Exception {
+      throw new Exception();
+} 
+
+:};
+
+
+terminal CLASS, CONSTRUCTOR, FUNCTION, METHOD, FIELD, STATIC, VAR, INT, CHAR, BOOLEAN, VOID, TRUE, FALSE, NULL, THIS, LET, DO, IF, ELSE, WHILE, RETURN, LCBRACKET, RCBRACKET, LPAREN, RPAREN, LBRACKET, RBRACKET, PERIOD, COMMA, SEMICOLON, ADD, SUB, TIM, DIV, AMPERSAND, PLECA, LESS, GREAT, EQUAL, DIFERENT, INTEGERCONSTANT, STRINGCONSTANT, IDENTIFIER;
+
+non terminal Node class_, classVarDec, subRoutineDec, type, parameterList, subRoutineBody, varDec, statements, statement, letStatement, ifStatement, whileStatement, doStatement, returnStatement, expression, subRoutineCall, term, op, keywordConstant, unaryOp, expressionList, aux1, aux2, aux3, aux4, aux5, aux6, aux7, aux8, aux10, aux11, aux12;
+
+
+
+start with class_;
+
+class_          ::= CLASS IDENTIFIER:e LCBRACKET RCBRACKET               {: addClass(e,null,null); :}
+                |   CLASS IDENTIFIER:e LCBRACKET aux1:a RCBRACKET        {: addClass(e,a,null); :}
+                |   CLASS IDENTIFIER:e LCBRACKET aux2:a RCBRACKET        {: addClass(e,a,null); :}
+                |   CLASS IDENTIFIER:e LCBRACKET aux1:a aux2:b RCBRACKET {: addClass(e,a,b); :}
+                ;
+ 
+aux1            ::= classVarDec:a        {: RESULT = a; :}
+                |   classVarDec:a aux1:b {: RESULT = a;RESULT.add(b); :}
+                ;
+ 
+aux2            ::= subRoutineDec:a         {: RESULT = a; :}
+                |   subRoutineDec:a aux2:b  {: RESULT = a;RESULT.add(b); :}
+                ;
+ 
+classVarDec     ::= aux3:a type:b IDENTIFIER:e SEMICOLON          {: RESULT = addClassVarDec(e,a,b,null); :}
+                |   aux3:a type:b IDENTIFIER:e aux4:c SEMICOLON   {: RESULT = addClassVarDec(e,a,b,c); :}
+                ;
+
+aux3            ::= STATIC {:RESULT = new Node("<keyword> static </keyword>");:}
+                |   FIELD  {:RESULT = new Node("<keyword> field </keyword>");:}
+                ;
+ 
+aux4            ::= COMMA IDENTIFIER:e         {: RESULT = addAux4(e,null); :}
+                |   COMMA IDENTIFIER:e aux4:a  {: RESULT = addAux4(e,a); :}
+                ;
+
+type            ::= INT            {: RESULT = new Node("<keyword> int </keyword>"); :}    
+                |   CHAR           {: RESULT = new Node("<keyword> char </keyword>"); :}  
+                |   BOOLEAN        {: RESULT = new Node("<keyword> boolean </keyword>"); :} 
+                |   IDENTIFIER:e   {: RESULT = new Node("<identifier> "+e+" </identifier>"); :}
+                ; 
+
+subRoutineDec   ::= aux5:a aux6:b IDENTIFIER:e LPAREN RPAREN subRoutineBody:c {: RESULT = addSubRoutineDec(e,a,b,null,c); :}
+                |   aux5:a aux6:b IDENTIFIER:e LPAREN parameterList:c RPAREN subRoutineBody:d {: RESULT = addSubRoutineDec(e,a,b,c,d); :}
+                ;
+
+aux5            ::= CONSTRUCTOR {: RESULT = new Node("<keyword> constructor </keyword>"); :} 
+                |   FUNCTION    {: RESULT = new Node("<keyword> function </keyword>"); :} 
+                |   METHOD      {: RESULT = new Node("<keyword> method </keyword>"); :}    
+                ;
+
+aux6            ::= VOID        {: RESULT = new Node("<keyword> void </keyword>"); :} 
+                |   type:a      {: RESULT = a; :} 
+                ;
+
+parameterList   ::= type:a IDENTIFIER:e        {: RESULT =  addParameterList(e,a,null); :} 
+                |   type:a IDENTIFIER:e aux7:b {: RESULT =  addParameterList(e,a,b); :}
+                ;
+
+aux7            ::= COMMA type:a IDENTIFIER:e         {: RESULT =  addAux7(e,a,null); :}   
+                |   COMMA type:a IDENTIFIER:e aux7:b  {: RESULT =  addAux7(e,a,b); :} 
+                ;
+
+subRoutineBody  ::= LCBRACKET RCBRACKET                     {: RESULT = addSubRoutineBody(null,null); :}     
+                |   LCBRACKET aux8:a RCBRACKET              {: RESULT = addSubRoutineBody(a,null); :} 
+                |   LCBRACKET statements:a RCBRACKET             {: RESULT = addSubRoutineBody(a,null); :}
+                |   LCBRACKET aux8:a statements:b RCBRACKET {: RESULT = addSubRoutineBody(a,b); :}
+                ;
+
+aux8            ::= varDec:a        {: RESULT = a; :}
+                |   varDec:a aux8:b {: RESULT = a;RESULT.add(b); :}
+                ;
+
+varDec          ::= VAR type:a IDENTIFIER:e SEMICOLON        {: RESULT = addVarDec(e,a,null); :}
+                |   VAR type:a IDENTIFIER:e aux4:b SEMICOLON {: RESULT = addVarDec(e,a,b); :}
+                ;
+
+statements      ::= aux10:a {: RESULT = new Node("statements");RESULT.add(a);RESULT.add("/statements"); :}
+                ;
+
+aux10           ::= statement:a         {: RESULT = a; :}
+                |   statement:a aux10:b {: RESULT = a;RESULT.add(b); :}
+                ;
+
+statement       ::= letStatement:a    {: RESULT = a; :}
+                |   ifStatement:a     {: RESULT = a; :}
+                |   whileStatement:a  {: RESULT = a; :}
+                |   doStatement:a     {: RESULT = a; :}
+                |   returnStatement:a {: RESULT = a; :}
+                ;
+
+letStatement    ::= LET IDENTIFIER:e EQUAL expression:a SEMICOLON {: RESULT = addLetStatement(e,a,null); :}
+                |   LET IDENTIFIER:e LBRACKET expression:b RBRACKET EQUAL expression:a SEMICOLON {: RESULT = addLetStatement(e,a,b); :}
+                ;
+
+ifStatement     ::= IF LPAREN expression:a RPAREN LCBRACKET RCBRACKET {: RESULT = addIfStatement(a,null,null,false); :}
+                |   IF LPAREN expression:a RPAREN LCBRACKET statements:b RCBRACKET {: RESULT = addIfStatement(a,b,null,false); :}
+                |   IF LPAREN expression:a RPAREN LCBRACKET RCBRACKET ELSE LCBRACKET RCBRACKET {: RESULT = addIfStatement(a,null,null,true); :}
+                |   IF LPAREN expression:a RPAREN LCBRACKET statements:b RCBRACKET ELSE LCBRACKET RCBRACKET {: RESULT = addIfStatement(a,b,null,true); :}
+                |   IF LPAREN expression:a RPAREN LCBRACKET RCBRACKET ELSE LCBRACKET statements:c RCBRACKET {: RESULT = addIfStatement(a,null,c,true); :}
+                |   IF LPAREN expression:a RPAREN LCBRACKET statements:b RCBRACKET ELSE LCBRACKET statements:c RCBRACKET {: RESULT = addIfStatement(a,b,c,true); :}
+                ;
+
+whileStatement  ::= WHILE LPAREN expression:a RPAREN LCBRACKET RCBRACKET {: RESULT = addWhileStatement(a,null); :}
+                |   WHILE LPAREN expression:a RPAREN LCBRACKET statements:b RCBRACKET  {: RESULT = addWhileStatement(a,b); :}
+                ;
+
+doStatement     ::= DO subRoutineCall:a SEMICOLON {: RESULT = addDoStatement(a); :}
+                ;
+
+returnStatement ::= RETURN SEMICOLON              {: RESULT = addReturnStatement(null); :}
+                |   RETURN expression:a SEMICOLON {: RESULT = addReturnStatement(a); :}
+                ;
+
+expression      ::= term:a         {:  RESULT = new Node("expression");RESULT.add(a);RESULT.add("/expression"); :}
+                |   term:a aux11:b {:  RESULT = new Node("expression");RESULT.add(a);RESULT.add(b);RESULT.add("/expression"); :}
+                ;
+
+aux11           ::= op:a term:b         {: RESULT = a;RESULT.add(b); :}
+                |   op:a term:b aux11:c {: RESULT = a;RESULT.add(b);RESULT.add(c); :}
+                ;
+
+term            ::= INTEGERCONSTANT:e  {: RESULT = addTerm2(new Node("<integerConstant> "+e+" </integerConstant>"),null); :}
+                |   STRINGCONSTANT:e   {: RESULT = addTerm2(new Node("<stringConstant> "+e+" </stringConstant>"),null); :}
+                |   keywordConstant:a  {: RESULT = addTerm2(a,null); :}
+                |   IDENTIFIER:e       {: RESULT = addTerm2(new Node("<identifier> "+e+" </identifier>"),null); :}
+                |   IDENTIFIER:e LBRACKET expression:a RBRACKET {:RESULT = addTerm(e,a);:}
+                |   subRoutineCall:a   {: RESULT = addTerm2(a,null); :}
+                |   LPAREN expression:a RPAREN                  {:RESULT = addTerm(a);:}
+                |   unaryOp:a term:b  {: RESULT = addTerm2(a,b); :}
+                ;
+
+subRoutineCall  ::= IDENTIFIER:e LPAREN  RPAREN                 {:RESULT = addSubRoutineCall(e,null);:}
+                |   IDENTIFIER:e LPAREN expressionList:a RPAREN {:RESULT = addSubRoutineCall(e,a);:}
+                |   IDENTIFIER:e PERIOD IDENTIFIER:e2 LPAREN  RPAREN {:RESULT = addSubRoutineCall2(e,e2,null);:}
+                |   IDENTIFIER:e PERIOD IDENTIFIER:e2 LPAREN expressionList:a RPAREN {:RESULT = addSubRoutineCall2(e,e2,a);:}
+                ;
+
+expressionList  ::= expression:a         {: RESULT = a; :}
+                |   expression:a aux12:b {: RESULT = a;RESULT.add(b); :}
+                ;
+
+aux12           ::= COMMA expression:a         {: RESULT = new Node("<symbol> , </symbol>");RESULT.add(a); :}
+                |   COMMA expression:a aux12:b {: RESULT = new Node("<symbol> , </symbol>");RESULT.add(a);RESULT.add(b); :}
+                ;
+
+op              ::= ADD       {: RESULT = new Node("<symbol> + </symbol>"); :}
+                |   SUB       {: RESULT = new Node("<symbol> - </symbol>"); :}
+                |   TIM       {: RESULT = new Node("<symbol> * </symbol>"); :} 
+                |   DIV       {: RESULT = new Node("<symbol> / </symbol>"); :}
+                |   AMPERSAND {: RESULT = new Node("<symbol> &amp; </symbol>"); :}
+                |   PLECA     {: RESULT = new Node("<symbol> | </symbol>"); :}
+                |   LESS      {: RESULT = new Node("<symbol> &lt; </symbol>"); :}
+                |   GREAT     {: RESULT = new Node("<symbol> &gt; </symbol>"); :}
+                |   EQUAL     {: RESULT = new Node("<symbol> = </symbol>"); :}
+                ;
+
+unaryOp         ::= SUB      {: RESULT = new Node("<symbol> - </symbol>"); :}
+                |   DIFERENT {: RESULT = new Node("<symbol> ~ </symbol>"); :}
+                ;
+
+keywordConstant ::= TRUE  {: RESULT = new Node("<keyword> true </keyword>"); :}
+                |   FALSE {: RESULT = new Node("<keyword> false </keyword>"); :}
+                |   NULL  {: RESULT = new Node("<keyword> null </keyword>"); :}
+                |   THIS  {: RESULT = new Node("<keyword> this </keyword>"); :}
+                ;

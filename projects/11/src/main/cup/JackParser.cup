@@ -1,0 +1,421 @@
+import java_cup.runtime.*;
+import java.util.Hashtable;
+import java.util.LinkedList;
+
+/**
+Clase que reciben los tokens y va siguiendo la gramática del lenguaje para comprobar
+si a sintaxis es correcta, a su vez genera el árbol de análisis sintáctico.
+Este parser está desarrollado con JCUP, este no reconoce algunas funciones de las gramáticas normales 
+como los son *+? por lo que la gramática debió ser factoriza, pero se conserva su significado.
+*/
+parser code {:
+
+public Node n = new Node(); // Nodo raiz del arbol
+
+Hashtable<String, SymbolTable> classLevel = new Hashtable<String, SymbolTable>(); 
+Hashtable<String, SymbolTable> subRoutineLevel = new Hashtable<String, SymbolTable>(); 
+
+Hashtable<String, Short> subRoutines = new Hashtable<String, Short>(); 
+
+String className = "";
+short cExp = 0;
+short cLabelIf = 0;short cLabelWhile = 0;short cReturn = 0;
+
+
+short cField = 0; short cStatic = 0; short cArgument = 0; short cLocal = 0; 
+
+// Todos los métodos a continuación son auxiliares para agregar diferentes nodos al árbol
+public void addClass(Object e, Node a, Node b) throws Exception {
+      n = new Node();n.add(b);cLabelIf=0;cLabelWhile=0;cExp=0;
+      subRoutines = new Hashtable<String, Short>(); 
+      if(!((String)e).equals(className)) {
+        System.out.print("The class name doesn't match the file name");
+        throw new Exception();
+      }
+}
+
+public Node addClassVarDec(Object e, Node a, Node b, Node c) throws Exception {
+      n = new Node();
+         String vars[] = (e+c.value).split(",");
+         for(String v : vars) {
+           if(!classLevel.containsKey(v)){
+             classLevel.put(v,new SymbolTable(b.value,(a.value.equals("field"))?"this":"static",(a.value.equals("field"))?cField++:cStatic++));
+            }else{
+              System.out.print(v+" Var Dec ");
+              throw new Exception();
+            }
+         }
+
+      return n;
+}
+
+public Node addAux4(Object e, Node a) {
+      n = new Node();n.value += ","+e+a.value;
+      return n;
+}
+
+public Node addSubRoutineDec(Object e, Node a, Node b, Node c, Node d) throws Exception {
+      n = new Node("function "+className+"."+e+" "+cLocal);
+      if(a.value.equals("method")){n.add("push argument 0");n.add("pop pointer 0");}
+      if(a.value.equals("constructor")){n.add("push constant "+cField);n.add("call Memory.alloc 1");n.add("pop pointer 0");}
+      n.add(d);cLocal = 0;cArgument = 0;
+      subRoutineLevel = new Hashtable<String, SymbolTable>();
+
+      if(!subRoutines.containsKey((String) e)){
+        subRoutines.put((String) e,(short)0);
+      }else {
+        System.out.print("Subroutine "+e+" redeclared");
+        throw new Exception();
+      }
+      if(cReturn == 0) {
+        System.out.print("In subroutine "+e+": Program flow may reach end of subroutine without 'return'");
+        throw new Exception();
+      }
+      cReturn = 0;
+      return n;
+}
+
+public Node addSubRoutineBody(Node a, Node b) {
+      n = new Node();n.add(b);
+      return n;
+}
+
+public Node addVarDec(Object e, Node a, Node b) throws Exception {
+      n = new Node();n.value += a.value+" "+e+b.value;
+      String vars[] = (n.value).split(",");
+        String s[] = vars[0].split(" ");
+        vars[0] = s[1];
+           for(String v : vars) {
+             if(!subRoutineLevel.containsKey(v)){
+               subRoutineLevel.put(v,new SymbolTable(s[0],"local",cLocal++));
+              }else{
+                System.out.print(v+" Var Dec ");
+                throw new Exception();
+              }
+           }
+      return n;
+}
+
+public Node addParameterList(Object e, Node a, Node b) throws Exception {
+      n = new Node();n.value += a.value+" "+e+b.value;
+      if(!n.value.equals("")) {
+        String vars[] = (n.value).split(",");
+         for(String v : vars) {
+         String s[] = v.split(" "); 
+           if(!subRoutineLevel.containsKey(s[1])){
+             subRoutineLevel.put(s[1],new SymbolTable(s[0],"argument",cArgument++));
+            }else{
+              System.out.print(v+" Var Dec ");
+              throw new Exception();
+            }
+         }
+      }
+      return n;
+}
+
+public Node addAux7(Object e, Node a, Node b) {
+      n = new Node();n.value += ","+a.value+" "+e+b.value;
+      return n;
+}
+
+public Node addLetStatement(Object e, Node a, Node b) throws Exception {
+      n = new Node();
+      if(b != null) {
+        n.add(b);n.add("push "+getVar((String)e));n.add("add");
+      }
+      n.add(a);
+      if(b != null) {
+         n.add("pop temp 0");n.add("pop pointer 1");n.add("push temp 0");n.add("pop that 0");
+      }else n.add("pop "+getVar((String)e));
+      return n;
+}
+
+public String getVar(String name) throws Exception {
+  if(classLevel.containsKey(name))
+    return classLevel.get(name).kind+" "+classLevel.get(name).num;
+  else if(subRoutineLevel.containsKey(name))
+    return subRoutineLevel.get(name).kind+" "+subRoutineLevel.get(name).num;
+  else
+    System.out.print(name+" Var Dec ");
+    throw new Exception();
+}
+
+public boolean existVar(String name) {
+  if(classLevel.containsKey(name))
+    return true;
+  else if(subRoutineLevel.containsKey(name))
+    return true;
+  else
+    return false;
+}
+
+public String typeVar(String name) throws Exception {
+  if(classLevel.containsKey(name))
+    return classLevel.get(name).type;
+  else if(subRoutineLevel.containsKey(name))
+    return subRoutineLevel.get(name).type;
+  else
+    System.out.print(name+" Var Dec ");
+    throw new Exception();
+}
+
+public Node addIfStatement(Node a, Node b, Node c, boolean e) {
+      n = new Node();n.add(a);
+      n.add("if-goto IF_TRUE"+cLabelIf);n.add("goto IF_FALSE"+cLabelIf);n.add("label IF_TRUE"+cLabelIf);
+      n.add(b);  
+      if(e) {
+         n.add("goto IF_END"+cLabelIf);
+         n.add("label IF_FALSE"+cLabelIf);
+         n.add(c);
+         n.add("label IF_END"+cLabelIf);
+      }else n.add("label IF_FALSE"+cLabelIf);
+      cLabelIf++;
+      return n;
+}
+
+public Node addWhileStatement(Node a, Node b) {
+      n = new Node();
+      n.add("label WHILE_EXP"+cLabelWhile);
+      n.add(a);n.add("not");
+      n.add("if-goto WHILE_END"+cLabelWhile);
+      n.add(b);
+      n.add("goto WHILE_EXP"+cLabelWhile);
+      n.add("label WHILE_END"+cLabelWhile);cLabelWhile++;
+      return n;
+}
+
+public Node addDoStatement(Node a) {
+      n = new Node();n.add(a);n.add("pop temp 0");
+      return n;
+}
+
+public Node addReturnStatement(Node a) {
+      n = new Node();n.add(a);n.add("return");
+      cReturn++;
+      return n;
+}
+
+public Node addTerm(Object e, Node a) throws Exception {
+      n = new Node();n.add(a);n.add("push "+getVar((String)e));n.add("add");
+      n.add("pop pointer 1");n.add("push that 0");
+      return n;
+}
+
+public Node addTerm(Node a) {
+      n = new Node();n.add(a);
+      return n;
+}
+
+public Node addTerm2(Node a, Node b) {
+      n = new Node();n.add(a);n.add(b);
+      return n;
+}
+
+public Node addSubRoutineCall(Object e, Node a) {
+      n = new Node();
+      n.add("push pointer 0");
+      n.add(a);
+      n.add("call "+className+"."+e+" "+(cExp+1));
+      return n;
+}
+
+public Node addSubRoutineCall2(Object e, Object e2, Node a) throws Exception {
+      n = new Node();
+      if(existVar((String)e)){
+        n.add("push "+getVar((String)e));
+        n.add(a);n.add("call "+typeVar((String)e)+"."+e2+" "+(cExp+1));
+      }else {
+        n.add(a);n.add("call "+e+"."+e2+" "+cExp);
+      }
+      
+      cExp = 0;
+      return n;
+}
+
+public Node addString(String s) {
+  n = new Node();
+  n.add("push constant "+s.length());
+  n.add("call String.new 1");
+  char[] sToChar = s.toCharArray();
+  for(int c : sToChar) {
+   n.add("push constant "+c);
+   n.add("call String.appendChar 2");
+  }
+  return n;
+}
+
+public void syntax_error(Symbol cur_token) {
+   System.out.print("Syntax error ");
+}
+
+public void unrecovered_syntax_error(Symbol cur_token) throws Exception {
+      throw new Exception();
+} 
+
+:};
+
+
+terminal CLASS, CONSTRUCTOR, FUNCTION, METHOD, FIELD, STATIC, VAR, INT, CHAR, BOOLEAN, VOID, TRUE, FALSE, NULL, THIS, LET, DO, IF, ELSE, WHILE, RETURN, LCBRACKET, RCBRACKET, LPAREN, RPAREN, LBRACKET, RBRACKET, PERIOD, COMMA, SEMICOLON, ADD, SUB, TIM, DIV, AMPERSAND, PLECA, LESS, GREAT, EQUAL, DIFERENT, INTEGERCONSTANT, STRINGCONSTANT, IDENTIFIER;
+
+non terminal Node class_, classVarDec, subRoutineDec, type, parameterList, subRoutineBody, varDec, statements, statement, letStatement, ifStatement, whileStatement, doStatement, returnStatement, expression, subRoutineCall, term, op, keywordConstant, unaryOp, expressionList, aux1, aux2, aux3, aux4, aux5, aux6, aux7, aux8, aux10, aux11, aux12;
+
+
+
+start with class_;
+
+class_          ::= CLASS IDENTIFIER:e LCBRACKET RCBRACKET               {: addClass(e,null,null); :}
+                |   CLASS IDENTIFIER:e LCBRACKET aux1:a RCBRACKET        {: addClass(e,a,null); :}
+                |   CLASS IDENTIFIER:e LCBRACKET aux2:a RCBRACKET        {: addClass(e,null,a); :}
+                |   CLASS IDENTIFIER:e LCBRACKET aux1:a aux2:b RCBRACKET {: addClass(e,a,b); :}
+                ;
+ 
+aux1            ::= classVarDec:a        {: RESULT = a; :}
+                |   classVarDec:a aux1:b {: RESULT = a;RESULT.add(b); :}
+                ;
+ 
+aux2            ::= subRoutineDec:a         {: RESULT = a; :}
+                |   subRoutineDec:a aux2:b  {: RESULT = a;RESULT.add(b); :}
+                ;
+ 
+classVarDec     ::= aux3:a type:b IDENTIFIER:e SEMICOLON          {: RESULT = addClassVarDec(e,a,b,new Node()); :}
+                |   aux3:a type:b IDENTIFIER:e aux4:c SEMICOLON   {: RESULT = addClassVarDec(e,a,b,c); :}
+                ;
+
+aux3            ::= STATIC {:RESULT = new Node("static");:}
+                |   FIELD  {:RESULT = new Node("field");:}
+                ;
+ 
+aux4            ::= COMMA IDENTIFIER:e         {: RESULT = addAux4(e,new Node()); :}
+                |   COMMA IDENTIFIER:e aux4:a  {: RESULT = addAux4(e,a); :}
+                ;
+
+type            ::= INT            {: RESULT = new Node("int"); :}    
+                |   CHAR           {: RESULT = new Node("char"); :}  
+                |   BOOLEAN        {: RESULT = new Node("boolean"); :} 
+                |   IDENTIFIER:e   {: RESULT = new Node(e+""); :}
+                ; 
+
+subRoutineDec   ::= aux5:a aux6:b IDENTIFIER:e LPAREN RPAREN subRoutineBody:c {: RESULT = addSubRoutineDec(e,a,b,new Node(),c); :}
+                |   aux5:a aux6:b IDENTIFIER:e LPAREN parameterList:c RPAREN subRoutineBody:d {: RESULT = addSubRoutineDec(e,a,b,c,d); :}
+                ;
+
+aux5            ::= CONSTRUCTOR {: RESULT = new Node("constructor"); :} 
+                |   FUNCTION    {: RESULT = new Node("function"); :} 
+                |   METHOD      {: RESULT = new Node("method");cArgument++; :}    
+                ;
+
+aux6            ::= VOID        {: RESULT = new Node("void"); :} 
+                |   type:a      {: RESULT = a; :} 
+                ;
+
+parameterList   ::= type:a IDENTIFIER:e        {: RESULT =  addParameterList(e,a,new Node()); :} 
+                |   type:a IDENTIFIER:e aux7:b {: RESULT =  addParameterList(e,a,b); :}
+                ;
+
+aux7            ::= COMMA type:a IDENTIFIER:e         {: RESULT =  addAux7(e,a,new Node ()); :}   
+                |   COMMA type:a IDENTIFIER:e aux7:b  {: RESULT =  addAux7(e,a,b); :} 
+                ;
+
+subRoutineBody  ::= LCBRACKET RCBRACKET                     {: RESULT = addSubRoutineBody(new Node(),null); :}     
+                |   LCBRACKET aux8:a RCBRACKET              {: RESULT = addSubRoutineBody(a,new Node()); :} 
+                |   LCBRACKET statements:a RCBRACKET             {: RESULT = addSubRoutineBody(new Node(),a); :}
+                |   LCBRACKET aux8:a statements:b RCBRACKET {: RESULT = addSubRoutineBody(a,b); :}
+                ;
+
+aux8            ::= varDec:a        {: RESULT = a; :}
+                |   varDec:a aux8:b {: RESULT = a;RESULT.value += "-"+b.value; :}
+                ;
+
+varDec          ::= VAR type:a IDENTIFIER:e SEMICOLON        {: RESULT = addVarDec(e,a,new Node()); :}
+                |   VAR type:a IDENTIFIER:e aux4:b SEMICOLON {: RESULT = addVarDec(e,a,b); :}
+                ;
+
+statements      ::= aux10:a {: RESULT = new Node();RESULT.add(a); :}
+                ;
+
+aux10           ::= statement:a         {: RESULT = a; :}
+                |   statement:a aux10:b {: RESULT = a;RESULT.add(b); :}
+                ;
+
+statement       ::= letStatement:a    {: RESULT = a; :}
+                |   ifStatement:a     {: RESULT = a; :}
+                |   whileStatement:a  {: RESULT = a; :}
+                |   doStatement:a     {: RESULT = a; :}
+                |   returnStatement:a {: RESULT = a; :}
+                ;
+
+letStatement    ::= LET IDENTIFIER:e EQUAL expression:a SEMICOLON {: RESULT = addLetStatement(e,a,null); :}
+                |   LET IDENTIFIER:e LBRACKET expression:b RBRACKET EQUAL expression:a SEMICOLON {: RESULT = addLetStatement(e,a,b); :}
+                ;
+
+ifStatement     ::= IF LPAREN expression:a RPAREN LCBRACKET RCBRACKET {: RESULT = addIfStatement(a,null,null,false); :}
+                |   IF LPAREN expression:a RPAREN LCBRACKET statements:b RCBRACKET {: RESULT = addIfStatement(a,b,null,false); :}
+                |   IF LPAREN expression:a RPAREN LCBRACKET RCBRACKET ELSE LCBRACKET RCBRACKET {: RESULT = addIfStatement(a,null,null,true); :}
+                |   IF LPAREN expression:a RPAREN LCBRACKET statements:b RCBRACKET ELSE LCBRACKET RCBRACKET {: RESULT = addIfStatement(a,b,null,true); :}
+                |   IF LPAREN expression:a RPAREN LCBRACKET RCBRACKET ELSE LCBRACKET statements:c RCBRACKET {: RESULT = addIfStatement(a,null,c,true); :}
+                |   IF LPAREN expression:a RPAREN LCBRACKET statements:b RCBRACKET ELSE LCBRACKET statements:c RCBRACKET {: RESULT = addIfStatement(a,b,c,true); :}
+                ;
+
+whileStatement  ::= WHILE LPAREN expression:a RPAREN LCBRACKET RCBRACKET {: RESULT = addWhileStatement(a,null); :}
+                |   WHILE LPAREN expression:a RPAREN LCBRACKET statements:b RCBRACKET  {: RESULT = addWhileStatement(a,b); :}
+                ;
+
+doStatement     ::= DO subRoutineCall:a SEMICOLON {: RESULT = addDoStatement(a); :}
+                ;
+
+returnStatement ::= RETURN SEMICOLON              {: RESULT = addReturnStatement(new Node("push constant 0")); :}
+                |   RETURN expression:a SEMICOLON {: RESULT = addReturnStatement(a); :}
+                ;
+
+expression      ::= term:a         {:  RESULT = new Node();RESULT.add(a); :}
+                |   term:a aux11:b {:  RESULT = new Node();RESULT.add(a);RESULT.add(b); :}
+                ;
+
+aux11           ::= op:a term:b         {: RESULT = b;RESULT.add(a); :}
+                |   op:a term:b aux11:c {: RESULT = b;RESULT.add(a);RESULT.add(b); :}
+                ;
+
+term            ::= INTEGERCONSTANT:e  {: RESULT = addTerm2(new Node("push constant "+e),null); :}
+                |   STRINGCONSTANT:e   {: RESULT = addTerm2(addString((String)e),null); :}
+                |   keywordConstant:a  {: RESULT = addTerm2(a,null); :}
+                |   IDENTIFIER:e       {: RESULT = addTerm2(new Node("push "+getVar((String)e)),null); :}
+                |   IDENTIFIER:e LBRACKET expression:a RBRACKET {:RESULT = addTerm(e,a);:}
+                |   subRoutineCall:a   {: RESULT = addTerm2(a,null); :}
+                |   LPAREN expression:a RPAREN                  {:RESULT = addTerm(a);:}
+                |   unaryOp:a term:b  {: RESULT = addTerm2(b,a); :}
+                ;
+
+subRoutineCall  ::= IDENTIFIER:e LPAREN  RPAREN                 {:RESULT = addSubRoutineCall(e,null);:}
+                |   IDENTIFIER:e LPAREN expressionList:a RPAREN {:RESULT = addSubRoutineCall(e,a);:}
+                |   IDENTIFIER:e PERIOD IDENTIFIER:e2 LPAREN  RPAREN {:RESULT = addSubRoutineCall2(e,e2,null);:}
+                |   IDENTIFIER:e PERIOD IDENTIFIER:e2 LPAREN expressionList:a RPAREN {:RESULT = addSubRoutineCall2(e,e2,a);:}
+                ;
+
+expressionList  ::= expression:a         {: RESULT = a;cExp++; :}
+                |   expression:a aux12:b {: RESULT = a;RESULT.add(b);cExp++; :}
+                ;
+
+aux12           ::= COMMA expression:a         {: RESULT = new Node();RESULT.add(a);cExp++; :}
+                |   COMMA expression:a aux12:b {: RESULT = new Node();RESULT.add(a);RESULT.add(b);cExp++; :}
+                ;
+
+op              ::= ADD       {: RESULT = new Node("add"); :}
+                |   SUB       {: RESULT = new Node("sub"); :}
+                |   TIM       {: RESULT = new Node("call Math.multiply 2"); :} 
+                |   DIV       {: RESULT = new Node("call Math.divide 2"); :}
+                |   AMPERSAND {: RESULT = new Node("and"); :}
+                |   PLECA     {: RESULT = new Node("or"); :}
+                |   LESS      {: RESULT = new Node("lt"); :}
+                |   GREAT     {: RESULT = new Node("gt"); :}
+                |   EQUAL     {: RESULT = new Node("eq"); :}
+                ;
+
+unaryOp         ::= SUB      {: RESULT = new Node("neg"); :}
+                |   DIFERENT {: RESULT = new Node("not"); :}
+                ;
+
+keywordConstant ::= TRUE  {: RESULT = new Node("push constant 0");RESULT.add("not"); :}
+                |   FALSE {: RESULT = new Node("push constant 0"); :}
+                |   NULL  {: RESULT = new Node("push constant 0"); :}
+                |   THIS  {: RESULT = new Node("push pointer 0"); :}
+                ;

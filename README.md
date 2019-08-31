@@ -15,3 +15,5 @@ Nand2Tetris website: http://nand2tetris.org/
 * Project 9: High-Level Language
 * Project 10: Compiler I: Syntax Analysis
 * Project 11: Compiler II: Code Generation
+
+Original repository: https://svn.riouxsvn.com/254sssotom/proyectos/

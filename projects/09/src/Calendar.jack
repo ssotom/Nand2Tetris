@@ -1,0 +1,405 @@
+class Calendar {
+
+	function void printCalendar(int month, int year) {
+		var int h, numberOfDays, i, j;
+		var String str, str2, str3, str4;
+		do Screen.clearScreen();
+		do Output.moveCursor(0,0);
+		if((year<1583) | (year>2299)){
+			let str = "Error: Solo son valido anios entre 1583 y 2299";
+			do Output.printString(str);
+			do Output.println();
+			do str.dispose();
+			return;
+		}
+		if((month<1) | (month>12)){
+			let str = "Error: Solo son valido meses entre 1 y 12";
+			do Output.printString(str);
+			do Output.println();
+			do str.dispose();
+			return;
+		}
+		let str = "| Do | Lu | Ma | Mi | Ju | Vi | Sa |";
+		let str2 = "|";
+		let str3 = "  |";
+		let str4 = " |";
+		let numberOfDays = Calendar.numberOfDays(month,year);
+		do Output.printInt(year);
+		do Calendar.printLine();
+		do Output.printString(str);
+		do str.dispose();
+		do Calendar.printLine();
+		let h = Calendar.getDay(1,month,year);
+		do Output.printString(str2);
+		do Calendar.printEmptyFields(h);
+		let i = 1;
+		let j = h;
+		while(i < (numberOfDays+1)) {
+			if(j = 7){
+				do Calendar.printLine();
+				do Output.printString(str2);
+				let j = 0;
+			}
+			do Output.printChar(32);
+			do Output.printInt(i);
+			if(i < 10) {
+				do Output.printString(str3);
+			} else {
+				do Output.printString(str4);
+			}	
+			let i = i + 1;
+			let j = j + 1;
+		}
+		do str2.dispose();
+		do str3.dispose();
+		do str4.dispose();
+		do Calendar.printEmptyFields(7-j);
+		do Calendar.printLine();
+		do Calendar.printHolidays(h,month,year);
+		return;
+	}
+
+	// Congruence Zeller
+	function int getDay(int day, int month, int year) {
+		var int q, m, k, j, h;
+		if(month < 3) {
+			let month = month + 12;
+			let year = year - 1;
+		}
+		let q = day;
+		let m = month;
+		let k = Main.mod(year,100);
+		let j = year/100;
+		let h = q + (13*(m+1)/5) + k + (k/4) + (j/4) + (5*j);
+		let h = Main.mod(h,7) - 1;
+		if(h = -1) {
+			return 6;
+		}
+		return h;
+	}
+	function void printHolidays(int h, int month, int year) {
+		var int monday, aux;
+		var Array easterResult;
+		var String description;
+		let easterResult = Calendar.EasterSunday(year);
+		let description = "";
+		if(month = 1) {
+			do Calendar.printRectangle(h+1);
+			let description = "1: Anio Nuevo";
+			do Output.printString(description);
+			do Output.println();
+			let monday = Calendar.getNextMonday(h+6);
+			do Calendar.printRectangle(monday);
+			let description = ": Dia de los Reyes Magos";
+			do Output.printInt(monday-h);
+			do Output.printString(description);
+			do Output.println();
+		}
+		if(month = 3) {
+			let monday = Calendar.getNextMonday(h+19);
+			do Calendar.printRectangle(monday);
+			let description = ": Dia de San Jose";
+			do Output.printInt(monday-h);
+			do Output.printString(description);
+			do Output.println();
+		}
+		if(month = 5) {
+			do Calendar.printRectangle(h+1);
+			let description = "1: Dia del trabajo";
+			do Output.printString(description);
+			do Output.println();
+		}
+		//Sundays after Easter
+		let aux = easterResult[0]+42;
+		if(month = (easterResult[1]+(aux/30))) {
+			let monday = Calendar.getNextMonday((aux+h)-(30*(aux/30)));
+			do Calendar.printRectangle(monday);
+			let description = ": Dia de la Ascension";
+			do Output.printInt(monday-h);
+			do Output.printString(description);
+			do Output.println();
+		}
+		let aux = easterResult[0]+62;
+		if(month = (easterResult[1]+(aux/30))) {
+			let monday = Calendar.getNextMonday((aux+h)-(30*(aux/30)));
+			do Calendar.printRectangle(monday);
+			let description = ": Dia de Corpus Christi";
+			do Output.printInt(monday-h);
+			do Output.printString(description);
+			do Output.println();
+		}
+		let aux = easterResult[0]+69;
+		if(month = (easterResult[1]+(aux/30))) {
+			let monday = Calendar.getNextMonday((aux+h)-(30*(aux/30)));
+			do Calendar.printRectangle(monday);
+			let description = ": Dia del Sagrado Corazon de Jesus";
+			do Output.printInt(monday-h);
+			do Output.printString(description);
+			do Output.println();
+		}//
+		if(month = 6  & (Calendar.getNextMonday(h+29) < (h+31))) {
+			let monday = Calendar.getNextMonday(h+29);
+			do Calendar.printRectangle(monday);
+			let description = ": Dia de San Pedro y San Pablo";
+			do Output.printInt(monday-h);
+			do Output.printString(description);
+			do Output.println();
+		}
+		if(month = 7  & ~((h=2) | (h=3))) {
+			let monday = Calendar.getNextMonday(h+1);
+			do Calendar.printRectangle(monday);
+			let description = ": Dia de San Pedro y San Pablo";
+			do Output.printInt(monday-h);
+			do Output.printString(description);
+			do Output.println();
+		}
+		if(month = 7) {
+			do Calendar.printRectangle(h+20);
+			let description = "20: Dia de la independencia";
+			do Output.printString(description);
+			do Output.println();
+		}
+		if(month = 8) {
+			do Calendar.printRectangle(h+7);
+			let description = "7: Batalla de Boyaca";
+			do Output.printString(description);
+			do Output.println();
+			let monday = Calendar.getNextMonday(h+15);
+			do Calendar.printRectangle(monday);
+			let description = ": Asuncion de la Virgen";
+			do Output.printInt(monday-h);
+			do Output.printString(description);
+			do Output.println();
+		}
+		if(month = 10) {
+			let monday = Calendar.getNextMonday(h+12);
+			do Calendar.printRectangle(monday);
+			let description = ": Dia de la Raza";
+			do Output.printInt(monday-h);
+			do Output.printString(description);
+			do Output.println();
+		}
+		if(month = 11) {
+			let monday = Calendar.getNextMonday(h+1);
+			do Calendar.printRectangle(monday);
+			let description = ": Dia de todos los Santos";
+			do Output.printInt(monday-h);
+			do Output.printString(description);
+			do Output.println();
+			let monday = Calendar.getNextMonday(h+11);
+			do Calendar.printRectangle(monday);
+			let description = ": Independencia de Cartagena";
+			do Output.printInt(monday-h);
+			do Output.printString(description);
+			do Output.println();
+		}
+		if(month = 12) {
+			do Calendar.printRectangle(h+8);
+			do Calendar.printRectangle(h+25);
+			let description = "8: Inmaculada Concepcion";
+			do Output.printString(description);
+			do Output.println();
+			let description = "25: Navidad";
+			do Output.printString(description);
+			do Output.println();
+		}
+		// Easter's Days
+		if((easterResult[0]-7) < 1){
+			if(month = (easterResult[1]-1)){
+				do Calendar.printRectangle(h+easterResult[0]+31-7);
+				let description = ": Domingo de Ramos";
+				do Output.printInt(easterResult[0]+31-7);
+				do Output.printString(description);
+				do Output.println();	
+			}
+		} else {
+			if(month = easterResult[1]) {
+				do Calendar.printRectangle(h+easterResult[0]-7);
+				let description = ": Domingo de Ramos";
+				do Output.printInt(easterResult[0]-7);
+				do Output.printString(description);
+				do Output.println();	
+			}
+		}
+		if((easterResult[0]-3) < 1){
+			if(month = (easterResult[1]-1)){
+				do Calendar.printRectangle(h+easterResult[0]+31-3);
+				let description = ": Jueves Santo";
+				do Output.printInt(easterResult[0]+31-3);
+				do Output.printString(description);
+				do Output.println();
+			}
+		} else {
+			if(month = easterResult[1]) {
+				do Calendar.printRectangle(h+easterResult[0]-3);
+				let description = ": Jueves Santo";
+				do Output.printInt(easterResult[0]-3);
+				do Output.printString(description);
+				do Output.println();
+			}
+		}
+		if((easterResult[0]-2) < 1){
+			if(month = (easterResult[1]-1)){
+				do Calendar.printRectangle(h+easterResult[0]+31-2);
+				let description = ": Viernes Santo";
+				do Output.printInt(easterResult[0]+31-2);
+				do Output.printString(description);
+				do Output.println();
+			}
+		} else {
+			if(month = easterResult[1]) {
+				do Calendar.printRectangle(h+easterResult[0]-2);
+				let description = ": Viernes Santo";
+				do Output.printInt(easterResult[0]-2);
+				do Output.printString(description);
+				do Output.println();
+			}
+		}
+		if(month = easterResult[1]) {
+			do Calendar.printRectangle(h+easterResult[0]);
+			let description = ": Domingo de Pascua";
+			do Output.printInt(easterResult[0]);
+			do Output.printString(description);
+			do Output.println();
+		}//
+		do easterResult.dispose();
+		do description.dispose();
+
+		return; 
+	}	
+
+	// Gauss
+	function Array EasterSunday(int year) {
+		var int a, b, c, d, e, g, h, j, k, m, r, n, p;
+		var Array result;
+		let a = Main.mod(year,19);
+		let b = year / 100;
+		let c = Main.mod(year,100);
+		let d = b / 4;
+		let e = Main.mod(b,4);
+		let g = ((8*b)+13) / 25;
+		let h = Main.mod(((19*a) + b - d - g + 15),30);
+		let j = c / 4;
+		let k = Main.mod(c,4);
+		let m = (a + (11*h)) / 310;
+		let r = Main.mod(((2*e) + (2*j) - k - h + m + 32),7);
+		let n = (h - m + r + 90) / 25; 
+		let p = Main.mod((h - m + r + n + 19),32);
+		let result = Array.new(2);
+		let result[0] = p;
+		let result[1] = n;
+		return result;
+	}
+
+	function int getNextMonday(int day) {
+		var int monday;
+		let monday = Calendar.getColumn(day);
+		if(monday = 0){
+			return day+1;
+		}
+		if(monday = 1){
+			return day;
+		} else {
+			return day+8-monday;
+		}
+	}
+
+	function int numberOfDays (int month, int year) {
+		var int numberOfDays;
+		var String monthName;
+		if(month = 1) {
+			let monthName = "Enero ";
+			let numberOfDays = 31;
+		}
+		if(month = 2) {
+			let monthName = "Febrero ";
+			if (Main.mod(year,400) = 0 | (Main.mod(year,4) = 0 & ~(Main.mod(year,100) = 0))) {
+				let numberOfDays = 29;
+			} else {
+				let numberOfDays = 28;
+			}		 
+		}
+		if(month = 3) {
+			let monthName = "Marzo ";
+			let numberOfDays = 31;
+		}
+		if(month = 4) {
+			let monthName = "Abril ";
+			let numberOfDays = 30;
+		}
+		if(month = 5) {
+			let monthName = "Mayo ";
+			let numberOfDays = 31;
+		}
+		if(month = 6) {
+			let monthName = "Junio ";
+			let numberOfDays = 30;
+		}
+		if(month = 7) {
+			let monthName = "Julio ";
+			let numberOfDays = 31;
+		}
+		if(month = 8) {
+			let monthName = "Agosto ";
+			let numberOfDays = 31;
+		}
+		if(month = 9) {
+			let monthName = "Septiembre ";
+			let numberOfDays = 30;
+		}
+		if(month = 10) {
+			let monthName = "Octubre ";
+			let numberOfDays = 31;
+		}
+		if(month = 11) {
+			let monthName = "Noviembre ";
+			let numberOfDays = 30;
+		}
+		if(month = 12) {
+			let monthName = "Diciembre ";
+			let numberOfDays = 31;
+		}
+		do Output.printString(monthName);
+		do monthName.dispose();
+		return numberOfDays;
+	}
+
+	function int getRow(int day) {
+		return (day-1)/7;
+	}
+
+	function int getColumn(int day) {
+		return day-(Calendar.getRow(day)*7)-1;
+	}
+
+	function void printLine() {
+		var String str;
+		let str = "------------------------------------";
+		do Output.println();
+		do Output.printString(str);
+		do str.dispose();
+		do Output.println();
+		return;
+	}
+
+	function void printEmptyFields(int a) {
+		var int i;
+		var String str;
+		let str = "    |";
+		let i = 0;
+		while(i < a) {
+			do Output.printString(str);
+			let i = i + 1;
+		}
+		do str.dispose();
+		return;
+	}
+
+	function void printRectangle(int day) {
+		var int x, y, row;
+		let x = 40*Calendar.getColumn(day);
+		let y = 22*(Calendar.getRow(day)+1);
+		do Screen.drawRectangle(1+x,17+y,13+x,39+y);
+		return;
+	}
+}
